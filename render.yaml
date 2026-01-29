@@ -1,0 +1,13 @@
+services:
+  - type: worker
+    name: training-bot
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        fromService:
+          name: training-bot
+          type: pserv
+          property: secret
