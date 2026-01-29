@@ -839,17 +839,49 @@ class TrainingBot:
 
 
 # ==================== ЗАПУСК БОТА ====================
-def main():
-    """Основная функция запуска"""
-    # Получаем токен из переменной окружения
+import signal
+import sys
+
+async def amain():
+    """Асинхронная основная функция запуска для Render."""
     TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
     if not TOKEN or TOKEN == 'YOUR_BOT_TOKEN_HERE':
-        print("❌ Пожалуйста, установите токен бота в переменной окружения TELEGRAM_BOT_TOKEN")
-        return
+        logger.error("❌ Пожалуйста, установите токен бота в переменной окружения TELEGRAM_BOT_TOKEN")
+        sys.exit(1) # Завершаем скрипт с кодом ошибки
 
-    # Создаем и запускаем бота
+    # Создаем бота
     bot = TrainingBot(TOKEN)
-    bot.run()
+
+    try:
+        # Инициализируем приложение
+        await bot.application.initialize()
+        # Запускаем polling
+        await bot.application.start()
+        logger.info("✅ Бот запущен и работает (polling).")
+
+        # Ожидаем сигнал остановки (например, SIGTERM от Render)
+        stop_event = asyncio.Event()
+        def signal_handler():
+            logger.info("Получен сигнал остановки. Завершаем работу...")
+            stop_event.set()
+
+        signal.signal(signal.SIGTERM, signal_handler)
+        signal.signal(signal.SIGINT, signal_handler) # Для Ctrl+C локально
+
+        await stop_event.wait() # Ждем сигнала остановки
+
+    finally:
+        logger.info("Останавливаем бота...")
+        await bot.application.stop()
+        await bot.application.shutdown()
+        logger.info("Бот остановлен.")
+
+
+def main():
+    """Синхронная точка входа для Render."""
+    # Используем asyncio.run для запуска асинхронной main функции
+    asyncio.run(amain())
+
 
 if __name__ == '__main__':
     main()
